@@ -177,7 +177,8 @@ fun DomDeckApp(
     DomDeckAmbientBackdrop {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val frontendRoute = currentDestination?.hasRoute<HomeRoute>() == true ||
-                currentDestination?.hasRoute<GameLibraryRoute>() == true
+                currentDestination?.hasRoute<GameLibraryRoute>() == true ||
+                currentDestination?.hasRoute<ConsolesRoute>() == true
             val useRail = maxWidth >= 600.dp && !frontendRoute
 
             Scaffold(
@@ -318,7 +319,9 @@ fun DomDeckApp(
                                     onOpenPs1WithShowcase = triggerPs1LibraryWithAnimation,
                                     onOpenPs1Setup = {
                                         navController.navigate(ConsoleSetupRoute(ConsoleCatalog.PS1_ID))
-                                    }
+                                    },
+                                    onReturnHome = { navigateTopLevel(HomeRoute) },
+                                    onOpenSettings = { navigateTopLevel(SettingsRoute) }
                                 )
                             }
 

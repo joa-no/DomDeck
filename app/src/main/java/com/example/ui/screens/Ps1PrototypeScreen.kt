@@ -91,7 +91,7 @@ fun Ps1PrototypeScreen(
                 runCatching {
                     val file = File(coverPath)
                     check(file.isFile && file.length() > 0L)
-                    val identity = game.uriString + ":" + file.lastModified() + ":" + file.length()
+                    val identity = "cover_plane_v2:" + game.uriString + ":" + file.lastModified() + ":" + file.length()
                     val hash = MessageDigest.getInstance("SHA-256")
                         .digest(identity.toByteArray())
                         .take(12).joinToString("") { "%02x".format(it) }
@@ -112,7 +112,7 @@ fun Ps1PrototypeScreen(
             }
             result.onSuccess {
                 modelLocation = it.toURI().toString()
-                coverStatus = "Capa local aplicada ao modelo 3D"
+                coverStatus = "Textura 3D gerada · confira a frente da caixa"
             }.onFailure {
                 coverStatus = "Falha ao aplicar capa · arte demonstrativa"
             }

@@ -40,18 +40,24 @@ class Ps1CoverGlbBuilderTest {
         assertEquals(result.size, buffer.getInt(8))
         val jsonLen = buffer.getInt(12)
         val json = JSONObject(String(result, 20, jsonLen, Charsets.UTF_8).trim())
-        val artworkNode = json.getJSONArray("nodes").let { arr ->
-            (0 until arr.length()).map { arr.getJSONObject(it) }
-                .first { it.getString("name") == "Artwork" }
+        val nodes = json.getJSONArray("nodes")
+        val quadIndex = (0 until nodes.length()).first {
+            nodes.getJSONObject(it).getString("name") == "CoverArtFront"
         }
+        val lidPivot = (0 until nodes.length()).map { nodes.getJSONObject(it) }
+            .first { it.getString("name") == "LidPivot" }
+        assertTrue(lidPivot.getJSONArray("children").toString().contains(quadIndex.toString()))
+        val coverNode = nodes.getJSONObject(quadIndex)
+        assertTrue(coverNode.getJSONArray("translation").getDouble(2) > 0.05)
         val primitive = json.getJSONArray("meshes")
-            .getJSONObject(artworkNode.getInt("mesh"))
+            .getJSONObject(coverNode.getInt("mesh"))
             .getJSONArray("primitives").getJSONObject(0)
         assertTrue(primitive.getJSONObject("attributes").has("TEXCOORD_0"))
         val material = json.getJSONArray("materials")
             .getJSONObject(primitive.getInt("material"))
-            .getJSONObject("pbrMetallicRoughness")
-        assertTrue(material.has("baseColorTexture"))
+        assertTrue(material.getJSONObject("pbrMetallicRoughness").has("baseColorTexture"))
+        assertTrue(material.getJSONObject("extensions").has("KHR_materials_unlit"))
+        assertTrue(json.getJSONArray("extensionsUsed").toString().contains("KHR_materials_unlit"))
         assertEquals("image/png", json.getJSONArray("images").getJSONObject(0).getString("mimeType"))
         assertEquals(2, json.getJSONArray("animations").length())
         val binOffset = 20 + jsonLen

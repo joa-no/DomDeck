@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +18,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,12 +49,37 @@ fun Ps1PrototypeScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var requestedClip by remember { mutableStateOf<String?>(null) }
+    var isOpen by remember { mutableStateOf(false) }
+    val lidProgress = remember { Animatable(0f) }
     var yaw by remember { mutableFloatStateOf(0f) }
 
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val model = rememberModelInstance(modelLoader, "models/domdeck_ps1_test.glb")
+
+    // A single clip is sampled explicitly to preserve the final lid position.
+    // This also handles mid-animation direction changes without resetting the model.
+    LaunchedEffect(model, isOpen) {
+        val animator = model?.animator ?: return@LaunchedEffect
+        val clipIndex = (0 until animator.animationCount).firstOrNull {
+            animator.getAnimationName(it) == "Open"
+        } ?: return@LaunchedEffect
+        val duration = animator.getAnimationDuration(clipIndex)
+
+        fun applyPose(fraction: Float) {
+            animator.applyAnimation(clipIndex, fraction.coerceIn(0f, 1f) * duration)
+            animator.updateBoneMatrices()
+        }
+
+        applyPose(lidProgress.value)
+        lidProgress.animateTo(
+            targetValue = if (isOpen) 1f else 0f,
+            animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
+        ) {
+            applyPose(value)
+        }
+        applyPose(lidProgress.value)
+    }
 
     Column(
         modifier = modifier.fillMaxSize().background(Color(0xFF18212A)),
@@ -83,8 +112,6 @@ fun Ps1PrototypeScreen(
                         modelInstance = instance,
                         scaleToUnits = 1.3f,
                         autoAnimate = false,
-                        animationName = requestedClip,
-                        animationLoop = false,
                         rotation = Rotation(y = yaw)
                     )
                 }
@@ -97,14 +124,14 @@ fun Ps1PrototypeScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
-                onClick = { requestedClip = "Open" },
-                enabled = model != null,
+                onClick = { isOpen = true },
+                enabled = model != null && !isOpen,
                 colors = ButtonDefaults.buttonColors(containerColor = DomDeckAccent),
                 modifier = Modifier.testTag("prototype_open")
             ) { Text("Abrir") }
             OutlinedButton(
-                onClick = { requestedClip = "Close" },
-                enabled = model != null,
+                onClick = { isOpen = false },
+                enabled = model != null && isOpen,
                 modifier = Modifier.testTag("prototype_close")
             ) { Text("Fechar") }
             OutlinedButton(

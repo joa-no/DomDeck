@@ -1,0 +1,6 @@
+{
+  "name": "DomDeck",
+  "description": "Frontend e launcher Android nativo para organizar bibliotecas de ROMs via SAF e acionar emuladores externos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

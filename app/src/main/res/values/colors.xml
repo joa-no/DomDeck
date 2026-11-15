@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="domdeck_bg">#0E1016</color>
+    <color name="domdeck_surface">#191C26</color>
+    <color name="domdeck_accent">#A78BFA</color>
+</resources>

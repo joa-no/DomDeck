@@ -75,6 +75,12 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk output/DomDeck-debug.apk
           test -s output/DomDeck-debug.apk
 
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs output/DomDeck-debug.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:

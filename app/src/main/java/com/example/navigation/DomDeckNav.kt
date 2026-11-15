@@ -65,6 +65,7 @@ import com.example.ui.screens.ConsoleSetupScreen
 import com.example.ui.screens.ConsolesScreen
 import com.example.ui.screens.GameDetailsScreen
 import com.example.ui.screens.GameLibraryScreen
+import com.example.ui.screens.Ps1PrototypeScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.DomDeckAccent
@@ -76,6 +77,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data object HomeRoute
+
+@Serializable
+data object Ps1PrototypeRoute
 
 @Serializable
 data object ConsolesRoute
@@ -309,8 +313,13 @@ fun DomDeckApp(
                                     },
                                     onOpenSettings = { navigateTopLevel(SettingsRoute) },
                                     onPlayGame = viewModel::launchPs1Game,
-                                    onDismissLaunchResult = viewModel::dismissLaunchResult
+                                    onDismissLaunchResult = viewModel::dismissLaunchResult,
+                                    onOpenPrototype = { navController.navigate(Ps1PrototypeRoute) }
                                 )
+                            }
+
+                            composable<Ps1PrototypeRoute> {
+                                Ps1PrototypeScreen(onBack = { navController.popBackStack() })
                             }
 
                             composable<ConsolesRoute> {

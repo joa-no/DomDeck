@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.model.GameEntry
 import com.example.model.LaunchResult
 import com.example.ui.components.ConsoleShowcase
@@ -81,6 +83,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit = {},
     onPlayGame: (GameEntry) -> Unit = {},
     onDismissLaunchResult: () -> Unit = {},
+    onOpenPrototype: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val games = uiState.ps1Games
@@ -160,6 +163,12 @@ fun HomeScreen(
                         style = MaterialTheme.typography.displayMedium,
                         color = DomDeckTextPrimary
                     )
+                }
+                if (BuildConfig.DEBUG) {
+                    TextButton(
+                        onClick = onOpenPrototype,
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 45.dp).testTag("open_ps1_prototype")
+                    ) { Text("TESTAR 3D", color = DomDeckAccent) }
                 }
                 IconButton(
                     onClick = onOpenSettings,

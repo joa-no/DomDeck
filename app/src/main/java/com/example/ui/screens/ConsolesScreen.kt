@@ -131,6 +131,7 @@ fun ConsolesScreen(
                 contentAlignment = Alignment.Center
             ) {
                 val stageHeight = maxHeight
+                val stageWidth = maxWidth
                 val centerHeight = (stageHeight * 0.72f).coerceAtMost(290.dp)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -143,7 +144,7 @@ fun ConsolesScreen(
                     }
                     Box(
                         modifier = Modifier
-                            .width((maxWidth * 0.35f).coerceAtMost(320.dp))
+                            .width((stageWidth * 0.35f).coerceAtMost(320.dp))
                             .height(centerHeight)
                             .clickable {
                                 if (selected.id == ConsoleCatalog.PS1_ID) onOpenPs1WithShowcase()

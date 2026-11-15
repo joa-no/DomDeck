@@ -1,56 +1,74 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.model.ConsoleCatalog
 import com.example.model.GameEntry
+import com.example.model.LaunchResult
 import com.example.ui.components.ConsoleShowcase
 import com.example.ui.components.ConsoleShowcaseMode
 import com.example.ui.components.GameCoverArtwork
-import com.example.ui.components.GlassActionButton
-import com.example.ui.components.GlassCard
-import com.example.ui.components.StatusPill
-import com.example.ui.components.StatusTone
 import com.example.ui.theme.DomDeckAccent
 import com.example.ui.theme.DomDeckTextPrimary
 import com.example.ui.theme.DomDeckTextSecondary
 import com.example.viewmodel.DomDeckUiState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.delay
 
 /**
- * Library-first home. Emulator status and setup stay available without occupying
- * the primary visual hierarchy. The existing scanner and launch flow are unchanged.
+ * Fullscreen, landscape-oriented game frontend.
+ *
+ * No scrolling sections: the selected title remains centered and neighboring
+ * covers act as a horizontal selector. Secondary setup pages are separate.
  */
 @Composable
 fun HomeScreen(
@@ -59,338 +77,354 @@ fun HomeScreen(
     onOpenConsoles: () -> Unit,
     onOpenPs1Setup: () -> Unit,
     onOpenGameDetails: (GameEntry) -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onPlayGame: (GameEntry) -> Unit = {},
+    onDismissLaunchResult: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val ps1GameCount = uiState.consoleGameCounts[ConsoleCatalog.PS1_ID] ?: 0
-    val hasFolder = uiState.ps1Settings.folderUri != null
-    val duckInstalled = uiState.duckStationStatus.isInstalled
+    val games = uiState.ps1Games
+    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(games.size) {
+        selectedIndex = selectedIndex.coerceIn(0, (games.size - 1).coerceAtLeast(0))
+    }
+    val selected = games.getOrNull(selectedIndex)
+
+    var timeText by remember { mutableStateOf("") }
+    var dateText by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = Date()
+            timeText = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
+            dateText = SimpleDateFormat("EEE, d MMM", Locale("pt", "BR")).format(now)
+            delay(30_000)
+        }
+    }
+
+    val launchError = uiState.launchResult as? LaunchResult.Failed
+    if (launchError != null) {
+        AlertDialog(
+            onDismissRequest = onDismissLaunchResult,
+            title = { Text("Não foi possível iniciar o jogo") },
+            text = { Text(launchError.reason) },
+            confirmButton = {
+                TextButton(onClick = onDismissLaunchResult) {
+                    Text("Fechar")
+                }
+            }
+        )
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val wideLayout = maxWidth >= 680.dp
+        val compact = maxHeight < 410.dp
+        val edge = if (compact) 12.dp else 22.dp
 
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            LazyColumn(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = edge, end = edge, top = if (compact) 8.dp else 16.dp, bottom = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Clock / system headline / options. The center headline uses an overlay
+            // so it stays centered regardless of button widths.
+            Box(modifier = Modifier.fillMaxWidth().height(if (compact) 62.dp else 78.dp)) {
+                Column(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = timeText,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = DomDeckTextPrimary
+                    )
+                    Text(
+                        text = dateText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = DomDeckTextSecondary,
+                        maxLines = 1
+                    )
+                }
+                Column(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "PLAYSTATION",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = androidx.compose.ui.unit.TextUnit(4f, androidx.compose.ui.unit.TextUnitType.Sp),
+                        color = DomDeckTextSecondary
+                    )
+                    Text(
+                        text = "1",
+                        style = MaterialTheme.typography.displayMedium,
+                        color = DomDeckTextPrimary
+                    )
+                }
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .testTag("nav_settings")
+                        .background(Color.White.copy(alpha = 0.09f), RoundedCornerShape(12.dp))
+                ) {
+                    Icon(Icons.Outlined.Settings, contentDescription = "Configurações", tint = DomDeckTextPrimary)
+                }
+            }
+
+            // Current system and indexed titles
+            Text(
+                text = if (games.size == 1) "1 JOGO NA BIBLIOTECA" else "${games.size} JOGOS NA BIBLIOTECA",
+                style = MaterialTheme.typography.labelSmall,
+                color = DomDeckTextSecondary,
+                modifier = Modifier.testTag("home_total_games_text")
+            )
+
+            // Full-width coverflow, no vertical or horizontal scrolling containers.
+            BoxWithConstraints(
                 modifier = Modifier
-                    .widthIn(max = 1040.dp)
-                    .fillMaxSize()
-                    .testTag("home_screen_list"),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 22.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(
-                                text = "DOMDECK",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = DomDeckAccent
-                            )
-                            Text(
-                                text = "Sua biblioteca",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = DomDeckTextPrimary
-                            )
-                        }
-                        Text(
-                            text = if (uiState.totalGameCount == 1) {
-                                "1 jogo"
-                            } else {
-                                "${uiState.totalGameCount} jogos"
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .pointerInput(games.size, selectedIndex) {
+                        var dragTotal = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { dragTotal = 0f },
+                            onHorizontalDrag = { change, amount ->
+                                change.consume()
+                                dragTotal += amount
                             },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = DomDeckTextSecondary,
-                            modifier = Modifier.testTag("home_total_games_text")
+                            onDragEnd = {
+                                if (dragTotal < -55f && selectedIndex < games.lastIndex) selectedIndex++
+                                else if (dragTotal > 55f && selectedIndex > 0) selectedIndex--
+                                dragTotal = 0f
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (games.isEmpty()) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        ConsoleShowcase(
+                            consoleName = "PlayStation 1",
+                            consoleShortName = "PS1",
+                            mode = ConsoleShowcaseMode.IDLE_PREVIEW,
+                            modifier = Modifier
+                                .width((maxWidth * 0.55f).coerceAtMost(360.dp))
+                                .height((maxHeight * 0.70f).coerceAtLeast(130.dp))
+                        )
+                        Text(
+                            text = "Sua biblioteca está vazia",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = DomDeckTextPrimary
+                        )
+                        Text(
+                            text = "Configure a pasta de jogos para começar.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DomDeckTextSecondary
                         )
                     }
-                }
+                } else {
+                    val heroHeight = (maxHeight * if (compact) 0.73f else 0.78f)
+                        .coerceAtMost(330.dp)
+                    val sideHeight = heroHeight * 0.72f
+                    val cardGap = if (maxWidth < 680.dp) 13.dp else 34.dp
 
-                item {
-                    GlassCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("home_ps1_quick_card"),
-                        shape = RoundedCornerShape(28.dp),
-                        elevated = true
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(cardGap)
                     ) {
-                        if (wideLayout) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Ps1HeroCopy(
-                                    gameCount = ps1GameCount,
-                                    hasFolder = hasFolder,
-                                    duckInstalled = duckInstalled,
-                                    onOpenLibrary = onOpenPs1Showcase,
-                                    onOpenSetup = onOpenPs1Setup,
-                                    modifier = Modifier.weight(1.2f)
-                                )
-                                ConsoleShowcase(
-                                    consoleName = "PlayStation 1",
-                                    consoleShortName = "PS1",
-                                    mode = ConsoleShowcaseMode.IDLE_PREVIEW,
-                                    modifier = Modifier
-                                        .weight(0.9f)
-                                        .height(238.dp)
-                                )
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                ConsoleShowcase(
-                                    consoleName = "PlayStation 1",
-                                    consoleShortName = "PS1",
-                                    mode = ConsoleShowcaseMode.IDLE_PREVIEW,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(185.dp)
-                                )
-                                Ps1HeroCopy(
-                                    gameCount = ps1GameCount,
-                                    hasFolder = hasFolder,
-                                    duckInstalled = duckInstalled,
-                                    onOpenLibrary = onOpenPs1Showcase,
-                                    onOpenSetup = onOpenPs1Setup
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Box(
+                            modifier = Modifier.size(width = sideHeight * 0.76f, height = sideHeight),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Jogos da biblioteca",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = DomDeckTextPrimary
-                            )
-                            if (uiState.allGames.isNotEmpty()) {
-                                TextButton(onClick = onOpenPs1Showcase) {
-                                    Text("Ver todos", color = DomDeckAccent)
-                                }
+                            games.getOrNull(selectedIndex - 1)?.let { game ->
+                                FrontendCover(
+                                    game = game,
+                                    uiState = uiState,
+                                    height = sideHeight,
+                                    featured = false,
+                                    rotationY = 12f,
+                                    onClick = { selectedIndex-- }
+                                )
                             }
                         }
-
-                        if (uiState.allGames.isEmpty()) {
-                            GlassCard(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(18.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.FolderOpen,
-                                        contentDescription = null,
-                                        tint = DomDeckAccent,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "Sua coleção começa aqui",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = DomDeckTextPrimary
-                                        )
-                                        Text(
-                                            text = if (hasFolder) {
-                                                "Abra o console para conferir ou atualizar os jogos encontrados."
-                                            } else {
-                                                "Selecione sua pasta de jogos de PS1 para montar a biblioteca."
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = DomDeckTextSecondary
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = DomDeckTextSecondary
-                                    )
-                                }
-                            }
-                        } else {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(uiState.allGames.take(10), key = { it.id }) { game ->
-                                    val metadata = uiState.gameMetadataByUri[game.uriString]
-                                    val title = metadata?.effectiveTitle?.takeIf { it.isNotBlank() }
-                                        ?: game.displayTitle
-                                    GlassCard(
-                                        modifier = Modifier
-                                            .width(146.dp)
-                                            .testTag("home_game_card_${game.id}"),
-                                        shape = RoundedCornerShape(18.dp),
-                                        onClick = { onOpenGameDetails(game) }
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(9.dp),
-                                            verticalArrangement = Arrangement.spacedBy(9.dp)
-                                        ) {
-                                            GameCoverArtwork(
-                                                title = title,
-                                                consoleShortName = "PS1",
-                                                fileType = game.fileType,
-                                                coverPath = metadata?.effectiveCoverPath,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(0.76f)
-                                            )
-                                            Text(
-                                                text = title,
-                                                style = MaterialTheme.typography.titleSmall,
-                                                color = DomDeckTextPrimary,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    GlassCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        FrontendCover(
+                            game = games[selectedIndex],
+                            uiState = uiState,
+                            height = heroHeight,
+                            featured = true,
+                            rotationY = 0f,
+                            onClick = { onOpenGameDetails(games[selectedIndex]) }
+                        )
+                        Box(
+                            modifier = Modifier.size(width = sideHeight * 0.76f, height = sideHeight),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.SportsEsports,
-                                contentDescription = null,
-                                tint = DomDeckAccent,
-                                modifier = Modifier.size(23.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Explorar consoles",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = DomDeckTextPrimary
-                                )
-                                Text(
-                                    text = "Outros sistemas estão em desenvolvimento",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = DomDeckTextSecondary,
-                                    maxLines = 2
-                                )
-                            }
-                            GlassActionButton(
-                                onClick = onOpenConsoles,
-                                modifier = Modifier.testTag("home_explore_consoles_button")
-                            ) {
-                                Text("Ver", style = MaterialTheme.typography.labelLarge)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                            games.getOrNull(selectedIndex + 1)?.let { game ->
+                                FrontendCover(
+                                    game = game,
+                                    uiState = uiState,
+                                    height = sideHeight,
+                                    featured = false,
+                                    rotationY = -12f,
+                                    onClick = { selectedIndex++ }
                                 )
                             }
                         }
                     }
                 }
+            }
+
+            // Game title and position are fixed below the coverflow.
+            Column(
+                modifier = Modifier.height(if (compact) 58.dp else 78.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = selected?.let {
+                        uiState.gameMetadataByUri[it.uriString]?.effectiveTitle?.takeIf { title -> title.isNotBlank() }
+                            ?: it.displayTitle
+                    } ?: "PLAYSTATION 1",
+                    style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                    color = DomDeckTextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(0.8f).testTag("frontend_selected_game_title")
+                )
+                Text(
+                    text = if (selected == null) "SEM JOGOS" else "${selectedIndex + 1} / ${games.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = DomDeckAccent
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.07f))
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                FrontendFooterAction(
+                    label = "SISTEMAS",
+                    icon = { Icon(Icons.Outlined.SportsEsports, contentDescription = null) },
+                    onClick = onOpenConsoles,
+                    modifier = Modifier.testTag("nav_consoles")
+                )
+                FrontendFooterAction(
+                    label = "ANTERIOR",
+                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) },
+                    enabled = selectedIndex > 0,
+                    onClick = { selectedIndex-- }
+                )
+                FrontendFooterAction(
+                    label = if (selected == null) "CONFIGURAR" else "JOGAR",
+                    icon = {
+                        Icon(
+                            if (selected == null) Icons.Outlined.Settings else Icons.Filled.PlayArrow,
+                            contentDescription = null
+                        )
+                    },
+                    emphasized = true,
+                    onClick = {
+                        selected?.let(onPlayGame) ?: onOpenPs1Setup()
+                    },
+                    modifier = Modifier.testTag("frontend_primary_action")
+                )
+                FrontendFooterAction(
+                    label = "PRÓXIMO",
+                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                    enabled = selectedIndex < games.lastIndex,
+                    onClick = { selectedIndex++ }
+                )
+                FrontendFooterAction(
+                    label = "DETALHES",
+                    icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    enabled = selected != null,
+                    onClick = { selected?.let(onOpenGameDetails) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun Ps1HeroCopy(
-    gameCount: Int,
-    hasFolder: Boolean,
-    duckInstalled: Boolean,
-    onOpenLibrary: () -> Unit,
-    onOpenSetup: () -> Unit,
-    modifier: Modifier = Modifier
+private fun FrontendCover(
+    game: GameEntry,
+    uiState: DomDeckUiState,
+    height: Dp,
+    featured: Boolean,
+    rotationY: Float,
+    onClick: () -> Unit
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+    val metadata = uiState.gameMetadataByUri[game.uriString]
+    val title = metadata?.effectiveTitle?.takeIf { it.isNotBlank() } ?: game.displayTitle
+
+    Box(
+        modifier = Modifier
+            .size(width = height * 0.76f, height = height)
+            .graphicsLayer {
+                this.rotationY = rotationY
+                cameraDistance = 14f * density
+                alpha = if (featured) 1f else 0.68f
+                scaleX = if (featured) 1f else 0.94f
+                scaleY = if (featured) 1f else 0.94f
+            }
+            .clickable(onClick = onClick)
+            .testTag("game_card_${game.id}")
     ) {
-        StatusPill(
-            text = if (duckInstalled) "DuckStation detectado" else "Emulador não detectado",
-            tone = if (duckInstalled) StatusTone.SUCCESS else StatusTone.NEUTRAL
+        GameCoverArtwork(
+            title = title,
+            consoleShortName = "PS1",
+            fileType = game.fileType,
+            coverPath = metadata?.effectiveCoverPath,
+            modifier = Modifier.fillMaxSize()
         )
-        Text(
-            text = "PlayStation 1",
-            style = MaterialTheme.typography.headlineLarge,
-            color = DomDeckTextPrimary
-        )
-        Text(
-            text = when {
-                gameCount > 0 -> if (gameCount == 1) {
-                    "1 jogo na sua coleção. Escolha uma capa para começar."
-                } else {
-                    "$gameCount jogos na sua coleção. Escolha uma capa para começar."
-                }
-                hasFolder -> "Sua pasta está conectada. Abra a biblioteca para explorar seus jogos."
-                else -> "Seus jogos, suas capas e suas histórias em um só lugar."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = DomDeckTextSecondary
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+    }
+}
+
+@Composable
+private fun FrontendFooterAction(
+    label: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    emphasized: Boolean = false
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .background(if (emphasized) DomDeckAccent.copy(alpha = 0.22f) else Color.Transparent)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        androidx.compose.material3.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides
+                (if (!enabled) DomDeckTextSecondary.copy(alpha = 0.4f)
+                else if (emphasized) DomDeckAccent
+                else DomDeckTextSecondary)
         ) {
-            GlassActionButton(
-                onClick = onOpenLibrary,
-                accentHighlight = true,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Abrir biblioteca",
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
+            Box(modifier = Modifier.size(17.dp)) {
+                icon()
             }
-            GlassActionButton(
-                onClick = onOpenSetup,
-                modifier = Modifier.testTag("home_setup_ps1_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Configurar PS1",
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Normal,
+                color = androidx.compose.material3.LocalContentColor.current,
+                maxLines = 1
+            )
         }
     }
 }

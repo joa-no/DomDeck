@@ -176,14 +176,16 @@ fun DomDeckApp(
 
     DomDeckAmbientBackdrop {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val useRail = maxWidth >= 600.dp
+            val frontendRoute = currentDestination?.hasRoute<HomeRoute>() == true ||
+                currentDestination?.hasRoute<GameLibraryRoute>() == true
+            val useRail = maxWidth >= 600.dp && !frontendRoute
 
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 bottomBar = {
-                    if (isTopLevel && !useRail) {
+                    if (isTopLevel && !useRail && !frontendRoute) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -303,7 +305,10 @@ fun DomDeckApp(
                                     },
                                     onOpenGameDetails = { game ->
                                         navController.navigate(GameDetailsRoute(game.id))
-                                    }
+                                    },
+                                    onOpenSettings = { navigateTopLevel(SettingsRoute) },
+                                    onPlayGame = viewModel::launchPs1Game,
+                                    onDismissLaunchResult = viewModel::dismissLaunchResult
                                 )
                             }
 
@@ -343,18 +348,19 @@ fun DomDeckApp(
                             }
 
                             composable<GameLibraryRoute> {
-                                GameLibraryScreen(
+                                HomeScreen(
                                     uiState = uiState,
-                                    onBack = { navController.popBackStack() },
-                                    onOpenSetup = {
+                                    onOpenPs1Showcase = {},
+                                    onOpenConsoles = { navigateTopLevel(ConsolesRoute) },
+                                    onOpenPs1Setup = {
                                         navController.navigate(ConsoleSetupRoute(ConsoleCatalog.PS1_ID))
                                     },
-                                    onFolderPicked = viewModel::onPs1FolderPicked,
-                                    onStartScan = viewModel::startPs1Scan,
-                                    onCancelScan = viewModel::cancelActiveScan,
                                     onOpenGameDetails = { game ->
                                         navController.navigate(GameDetailsRoute(game.id))
-                                    }
+                                    },
+                                    onOpenSettings = { navigateTopLevel(SettingsRoute) },
+                                    onPlayGame = viewModel::launchPs1Game,
+                                    onDismissLaunchResult = viewModel::dismissLaunchResult
                                 )
                             }
 

@@ -1,10 +1,12 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,200 +15,248 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Album
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.ConsoleCatalog
 import com.example.model.ConsoleIntegrationStatus
 import com.example.model.ConsoleSystem
-import com.example.ui.components.GlassActionButton
-import com.example.ui.components.GlassCard
-import com.example.ui.components.StatusPill
-import com.example.ui.components.StatusTone
+import com.example.ui.components.ConsoleShowcase
+import com.example.ui.components.ConsoleShowcaseMode
 import com.example.ui.theme.DomDeckAccent
-import com.example.ui.theme.DomDeckAccentMuted
-import com.example.ui.theme.DomDeckSurface
 import com.example.ui.theme.DomDeckTextPrimary
 import com.example.ui.theme.DomDeckTextSecondary
-import com.example.ui.theme.DomDeckTextTertiary
 import com.example.viewmodel.DomDeckUiState
 
+/**
+ * Frontend-style system selector: one focused console and previous/next systems.
+ * No grid and no scrolling panel.
+ */
 @Composable
 fun ConsolesScreen(
     uiState: DomDeckUiState,
     onOpenPs1WithShowcase: () -> Unit,
     onOpenPs1Setup: () -> Unit,
+    onReturnHome: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var inDevDialogConsole by remember { mutableStateOf<ConsoleSystem?>(null) }
+    val systems = ConsoleCatalog.allConsoles
+    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    val selected = systems[selectedIndex]
+    var showUnavailable by rememberSaveable { mutableStateOf(false) }
 
-    val myLibraryConsoles = remember(uiState.consoleGameCounts) {
-        ConsoleCatalog.allConsoles.filter { (uiState.consoleGameCounts[it.id] ?: 0) > 0 }
-    }
-    val exploreConsoles = remember(uiState.consoleGameCounts) {
-        ConsoleCatalog.allConsoles.filter { (uiState.consoleGameCounts[it.id] ?: 0) == 0 }
-    }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val compact = maxHeight < 410.dp
+        val edge = if (compact) 12.dp else 22.dp
 
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
-    ) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 280.dp),
-            modifier = Modifier
-                .widthIn(max = 1040.dp)
-                .fillMaxSize()
-                .testTag("consoles_screen_grid"),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .padding(start = edge, end = edge, top = 12.dp, bottom = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(if (compact) 58.dp else 76.dp)) {
+                Text(
+                    text = "DOMDECK",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = DomDeckAccent,
+                    modifier = Modifier.align(Alignment.TopStart)
+                )
+                Column(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        text = "Emuladores e Consoles",
+                        text = "SISTEMAS",
                         style = MaterialTheme.typography.headlineMedium,
-                        color = DomDeckTextPrimary
+                        color = DomDeckTextPrimary,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Consoles organizados de acordo com a quantidade real de jogos indexados.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "${selectedIndex + 1} / ${systems.size}",
+                        style = MaterialTheme.typography.labelMedium,
                         color = DomDeckTextSecondary
                     )
                 }
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.align(Alignment.TopEnd).testTag("nav_settings")
+                ) {
+                    Icon(Icons.Outlined.Settings, contentDescription = "Configurações", tint = DomDeckTextPrimary)
+                }
             }
 
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = "Minha biblioteca",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = DomDeckTextPrimary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            if (myLibraryConsoles.isEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    GlassCard(
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.testTag("my_library_empty_card")
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxWidth().weight(1f)
+                    .pointerInput(selectedIndex) {
+                        var total = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { total = 0f },
+                            onHorizontalDrag = { change, amount ->
+                                change.consume()
+                                total += amount
+                            },
+                            onDragEnd = {
+                                if (total < -55f && selectedIndex < systems.lastIndex) selectedIndex++
+                                else if (total > 55f && selectedIndex > 0) selectedIndex--
+                                total = 0f
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                val stageHeight = maxHeight
+                val centerHeight = (stageHeight * 0.72f).coerceAtMost(290.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    Box(modifier = Modifier.width(150.dp), contentAlignment = Alignment.Center) {
+                        systems.getOrNull(selectedIndex - 1)?.let { system ->
+                            ConsoleNeighbor(system = system, onClick = { selectedIndex-- })
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width((maxWidth * 0.35f).coerceAtMost(320.dp))
+                            .height(centerHeight)
+                            .clickable {
+                                if (selected.id == ConsoleCatalog.PS1_ID) onOpenPs1WithShowcase()
+                                else showUnavailable = true
+                            }
+                            .testTag("console_card_${selected.id}"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Nenhum console com jogos encontrados ainda",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = DomDeckTextPrimary
+                        if (selected.id == ConsoleCatalog.PS1_ID) {
+                            ConsoleShowcase(
+                                consoleName = selected.name,
+                                consoleShortName = selected.shortName,
+                                mode = ConsoleShowcaseMode.IDLE_PREVIEW,
+                                modifier = Modifier.fillMaxSize()
                             )
+                        } else {
                             Text(
-                                text = "Configure a pasta do PlayStation 1 e examine a biblioteca para que ele apareça nesta seção.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = DomDeckTextSecondary
+                                text = selected.shortName,
+                                style = MaterialTheme.typography.displayLarge,
+                                fontWeight = FontWeight.Black,
+                                color = DomDeckTextPrimary,
+                                modifier = Modifier.graphicsLayer { alpha = 0.74f }
                             )
                         }
                     }
-                }
-            } else {
-                items(
-                    items = myLibraryConsoles,
-                    key = { "lib_${it.id}" }
-                ) { console ->
-                    ConsoleCard(
-                        console = console,
-                        gameCount = uiState.consoleGameCounts[console.id] ?: 0,
-                        uiState = uiState,
-                        onClick = {
-                            if (console.id == ConsoleCatalog.PS1_ID) {
-                                onOpenPs1WithShowcase()
-                            } else {
-                                inDevDialogConsole = console
-                            }
-                        },
-                        onConfigurePs1 = onOpenPs1Setup
-                    )
+                    Box(modifier = Modifier.width(150.dp), contentAlignment = Alignment.Center) {
+                        systems.getOrNull(selectedIndex + 1)?.let { system ->
+                            ConsoleNeighbor(system = system, onClick = { selectedIndex++ })
+                        }
+                    }
                 }
             }
 
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            Column(
+                modifier = Modifier.height(if (compact) 60.dp else 86.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
-                    text = "Explorar consoles",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = DomDeckTextPrimary,
-                    modifier = Modifier.padding(top = 8.dp)
+                    text = selected.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = DomDeckTextPrimary
+                )
+                Text(
+                    text = if (selected.integrationStatus == ConsoleIntegrationStatus.AVAILABLE) {
+                        val count = uiState.consoleGameCounts[selected.id] ?: 0
+                        "${count} jogos • ${selected.targetEmulatorName ?: "Emulador externo"}"
+                    } else {
+                        "Integração em desenvolvimento"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = DomDeckTextSecondary
                 )
             }
 
-            items(
-                items = exploreConsoles,
-                key = { "explore_${it.id}" }
-            ) { console ->
-                ConsoleCard(
-                    console = console,
-                    gameCount = 0,
-                    uiState = uiState,
-                    onClick = {
-                        if (console.id == ConsoleCatalog.PS1_ID) {
-                            onOpenPs1WithShowcase()
-                        } else {
-                            inDevDialogConsole = console
+            Row(
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.07f))
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "VOLTAR",
+                    color = DomDeckTextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.clickable(onClick = onReturnHome)
+                        .padding(10.dp).testTag("nav_home")
+                )
+                IconButton(
+                    onClick = { if (selectedIndex > 0) selectedIndex-- },
+                    enabled = selectedIndex > 0
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Console anterior")
+                }
+                Text(
+                    text = if (selected.id == ConsoleCatalog.PS1_ID) "ABRIR BIBLIOTECA" else "EM DESENVOLVIMENTO",
+                    color = DomDeckAccent,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable {
+                            if (selected.id == ConsoleCatalog.PS1_ID) onOpenPs1WithShowcase()
+                            else showUnavailable = true
                         }
-                    },
-                    onConfigurePs1 = onOpenPs1Setup
+                        .padding(horizontal = 10.dp, vertical = 12.dp)
+                )
+                IconButton(
+                    onClick = { if (selectedIndex < systems.lastIndex) selectedIndex++ },
+                    enabled = selectedIndex < systems.lastIndex
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Próximo console")
+                }
+                Text(
+                    text = "CONFIGURAR PS1",
+                    color = DomDeckTextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.clickable(onClick = onOpenPs1Setup).padding(10.dp)
                 )
             }
         }
     }
 
-    inDevDialogConsole?.let { system ->
+    if (showUnavailable) {
         AlertDialog(
-            onDismissRequest = { inDevDialogConsole = null },
-            containerColor = DomDeckSurface.copy(alpha = 0.94f),
-            title = {
-                Text(
-                    text = system.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = DomDeckTextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "Integração em desenvolvimento.\n\nNa versão 0.1 do DomDeck, o fluxo completo de configuração, varredura SAF e integração exploratória com emulador externo está disponível para PlayStation 1.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = DomDeckTextSecondary
-                )
-            },
+            onDismissRequest = { showUnavailable = false },
+            title = { Text(selected.name) },
+            text = { Text("Este console ainda não possui integração no DomDeck. O PlayStation 1 é o sistema disponível nesta versão.") },
             confirmButton = {
-                TextButton(onClick = { inDevDialogConsole = null }) {
-                    Text("Entendi", color = DomDeckAccent)
+                TextButton(onClick = { showUnavailable = false }) {
+                    Text("Entendi")
                 }
             }
         )
@@ -214,159 +264,22 @@ fun ConsolesScreen(
 }
 
 @Composable
-private fun ConsoleCard(
-    console: ConsoleSystem,
-    gameCount: Int,
-    uiState: DomDeckUiState,
-    onClick: () -> Unit,
-    onConfigurePs1: () -> Unit
-) {
-    val isPs1 = console.id == ConsoleCatalog.PS1_ID
-    val isAvailable = console.integrationStatus == ConsoleIntegrationStatus.AVAILABLE
-    val isFolderConfigured = isPs1 && !uiState.ps1Settings.folderUri.isNullOrBlank()
-    val isDuckAssociated = isPs1 &&
-        uiState.ps1Settings.emulatorPackage == ConsoleCatalog.DUCKSTATION_PACKAGE
-
-    GlassCard(
+private fun ConsoleNeighbor(system: ConsoleSystem, onClick: () -> Unit) {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .testTag("console_card_${console.id}"),
-        shape = RoundedCornerShape(22.dp),
-        elevated = isPs1,
-        accentGlow = isPs1,
-        onClick = onClick
+            .width(142.dp)
+            .height(150.dp)
+            .graphicsLayer { alpha = 0.5f }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        modifier = Modifier.size(46.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isAvailable) DomDeckAccentMuted else Color(0x66202638),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isAvailable) DomDeckAccent.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f)
-                        )
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (isPs1) Icons.Outlined.Album else Icons.Outlined.Memory,
-                                contentDescription = console.name,
-                                tint = if (isAvailable) DomDeckAccent else DomDeckTextSecondary
-                            )
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = console.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = DomDeckTextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = console.mediaFormatLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = DomDeckTextSecondary
-                        )
-                    }
-                }
-
-                if (isPs1 && gameCount > 0) {
-                    StatusPill(
-                        text = "$gameCount jogo(s)",
-                        tone = StatusTone.ACCENT
-                    )
-                }
-            }
-
-            if (isPs1) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    StatusPill(
-                        text = when {
-                            isFolderConfigured && uiState.hasFolderReadPermission -> "Pasta configurada"
-                            isFolderConfigured -> "Permissão expirada"
-                            else -> "Pasta pendente"
-                        },
-                        tone = when {
-                            isFolderConfigured && uiState.hasFolderReadPermission -> StatusTone.SUCCESS
-                            isFolderConfigured -> StatusTone.WARNING
-                            else -> StatusTone.NEUTRAL
-                        }
-                    )
-
-                    StatusPill(
-                        text = when {
-                            uiState.duckStationStatus.isInstalled && isDuckAssociated -> "DuckStation pronto"
-                            uiState.duckStationStatus.isInstalled -> "DuckStation detectado"
-                            else -> "Emulador ausente"
-                        },
-                        tone = when {
-                            uiState.duckStationStatus.isInstalled && isDuckAssociated -> StatusTone.SUCCESS
-                            uiState.duckStationStatus.isInstalled -> StatusTone.ACCENT
-                            else -> StatusTone.WARNING
-                        },
-                        icon = if (uiState.duckStationStatus.isInstalled) {
-                            Icons.Outlined.CheckCircle
-                        } else {
-                            Icons.Outlined.WarningAmber
-                        }
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Toque para abrir biblioteca",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = DomDeckAccent
-                    )
-                    GlassActionButton(
-                        onClick = onConfigurePs1,
-                        modifier = Modifier.testTag("console_ps1_setup_btn"),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Configurar", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-            } else {
-                StatusPill(
-                    text = "Integração em desenvolvimento",
-                    tone = StatusTone.NEUTRAL,
-                    icon = Icons.Outlined.Build
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Nenhuma ROM indexada para este sistema nesta versão.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = DomDeckTextTertiary
-                )
-            }
-        }
+        Text(
+            text = system.name,
+            style = MaterialTheme.typography.titleLarge,
+            color = DomDeckTextPrimary,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

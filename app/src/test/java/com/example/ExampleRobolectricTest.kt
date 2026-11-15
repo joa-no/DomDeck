@@ -417,7 +417,7 @@ class ExampleRobolectricTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("home_total_games_text").assertIsDisplayed()
-        composeTestRule.onNodeWithText("0 jogos").assertIsDisplayed()
+        composeTestRule.onNodeWithText("0 JOGOS NA BIBLIOTECA").assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("nav_consoles").performClick()
         composeTestRule.waitForIdle()

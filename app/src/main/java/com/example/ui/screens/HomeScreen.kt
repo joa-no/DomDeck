@@ -30,9 +30,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.model.GameEntry
 import com.example.model.LaunchResult
 import com.example.ui.components.ConsoleShowcase
@@ -151,7 +152,7 @@ fun HomeScreen(
                         text = "PLAYSTATION",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = androidx.compose.ui.unit.TextUnit(4f, androidx.compose.ui.unit.TextUnitType.Sp),
+                        letterSpacing = 4.sp,
                         color = DomDeckTextSecondary
                     )
                     Text(
@@ -409,7 +410,7 @@ private fun FrontendFooterAction(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        androidx.compose.material3.CompositionLocalProvider(
+        CompositionLocalProvider(
             androidx.compose.material3.LocalContentColor provides
                 (if (!enabled) DomDeckTextSecondary.copy(alpha = 0.4f)
                 else if (emphasized) DomDeckAccent

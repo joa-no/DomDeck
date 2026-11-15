@@ -202,6 +202,8 @@ fun HomeScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
+                val stageWidth = maxWidth
+                val stageHeight = maxHeight
                 if (games.isEmpty()) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -212,8 +214,8 @@ fun HomeScreen(
                             consoleShortName = "PS1",
                             mode = ConsoleShowcaseMode.IDLE_PREVIEW,
                             modifier = Modifier
-                                .width((maxWidth * 0.55f).coerceAtMost(360.dp))
-                                .height((maxHeight * 0.70f).coerceAtLeast(130.dp))
+                                .width((stageWidth * 0.55f).coerceAtMost(360.dp))
+                                .height((stageHeight * 0.70f).coerceAtLeast(130.dp))
                         )
                         Text(
                             text = "Sua biblioteca está vazia",

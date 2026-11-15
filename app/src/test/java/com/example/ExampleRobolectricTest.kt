@@ -421,8 +421,8 @@ class ExampleRobolectricTest {
 
         composeTestRule.onNodeWithTag("nav_consoles").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Minha biblioteca").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Explorar consoles").assertIsDisplayed()
+        composeTestRule.onNodeWithText("SISTEMAS").assertIsDisplayed()
+        composeTestRule.onNodeWithText("PlayStation 1").assertIsDisplayed()
         composeTestRule.onNodeWithTag("console_card_ps1").assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("nav_settings").performClick()

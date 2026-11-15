@@ -319,7 +319,7 @@ fun DomDeckApp(
                             }
 
                             composable<Ps1PrototypeRoute> {
-                                Ps1PrototypeScreen(uiState = uiState, onBack = { navController.popBackStack() })
+                                Ps1PrototypeScreen(onBack = { navController.popBackStack() })
                             }
 
                             composable<ConsolesRoute> {

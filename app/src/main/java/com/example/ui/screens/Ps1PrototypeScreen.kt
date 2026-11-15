@@ -47,6 +47,7 @@ import com.example.ui.theme.DomDeckTextSecondary
 @Composable
 fun Ps1PrototypeScreen(
     onBack: () -> Unit,
+    onOpenTextureTest: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isOpen by remember { mutableStateOf(false) }
@@ -97,7 +98,16 @@ fun Ps1PrototypeScreen(
                 Text("DomDeck · Caixa PS1", color = DomDeckTextPrimary)
                 Text("Teste isolado de geometria e animação", color = DomDeckTextSecondary)
             }
-            Text(if (model == null) "Carregando..." else "Modelo 3D", color = DomDeckAccent)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(if (model == null) "Carregando..." else "Modelo 3D", color = DomDeckAccent)
+                OutlinedButton(
+                    onClick = onOpenTextureTest,
+                    modifier = Modifier.testTag("open_texture_test")
+                ) { Text("Testar textura") }
+            }
         }
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {

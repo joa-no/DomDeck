@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.net.Uri
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -20,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -75,9 +78,10 @@ fun Ps1PrototypeScreen(
     val modelLoader = rememberModelLoader(engine)
     var modelLocation by remember { mutableStateOf("models/domdeck_ps1_test.glb") }
     var coverStatus by remember { mutableStateOf("Sem capa selecionada") }
+    val baseModelPath = "models/domdeck_ps1_test.glb"
 
     LaunchedEffect(game?.uriString, coverPath) {
-        modelLocation = "models/domdeck_ps1_test.glb"
+        modelLocation = baseModelPath
         isOpen = false
         lidProgress.snapTo(0f)
 
@@ -111,16 +115,36 @@ fun Ps1PrototypeScreen(
                 }
             }
             result.onSuccess {
-                modelLocation = it.toURI().toString()
-                coverStatus = "Textura 3D gerada · confira a frente da caixa"
+                // File.toURI() emits file:/path, which SceneView 4.18 may treat as
+                // a non-loadable local reference. Android Uri.fromFile emits file:///path.
+                modelLocation = Uri.fromFile(it).toString()
+                coverStatus = "Carregando capa na caixa 3D..."
             }.onFailure {
                 coverStatus = "Falha ao aplicar capa · arte demonstrativa"
             }
         }
     }
 
-    val model = key(modelLocation) {
-        rememberModelInstance(modelLoader, fileLocation = modelLocation)
+    // Keep the known-working built-in model available while the generated
+    // GLB loads. If the generated GLB fails, never leave a black viewport.
+    val fallbackModel = rememberModelInstance(modelLoader, fileLocation = baseModelPath)
+    val texturedModel = if (modelLocation != baseModelPath) {
+        key(modelLocation) {
+            rememberModelInstance(modelLoader, fileLocation = modelLocation)
+        }
+    } else null
+    val model = texturedModel ?: fallbackModel
+
+    LaunchedEffect(modelLocation, texturedModel) {
+        if (modelLocation.startsWith("file://")) {
+            if (texturedModel != null) {
+                coverStatus = "Capa 3D carregada · confira a frente da caixa"
+            } else {
+                delay(3500)
+                // When this load succeeds, the effect is cancelled and restarted.
+                coverStatus = "Textura não carregou · exibindo caixa original"
+            }
+        }
     }
 
     // A single clip is sampled explicitly to preserve the final lid position.

@@ -34,10 +34,13 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     create("debugConfig") {
+      // GitHub Actions uses the dedicated, user-owned DomDeck signing key.
+      // Local AI Studio debug builds retain their original default configuration.
+      val signingPassword = System.getenv("DOMDECK_SIGNING_PASSWORD")
       storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      storePassword = signingPassword ?: "android"
+      keyAlias = if (signingPassword.isNullOrBlank()) "androiddebugkey" else "domdeck"
+      keyPassword = signingPassword ?: "android"
     }
   }
 

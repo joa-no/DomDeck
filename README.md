@@ -33,7 +33,7 @@ The [Android Build workflow](https://github.com/joa-no/DomDeck/actions/workflows
 
 Alternatively, open this repository in Android Studio or build with a compatible Android SDK, Java and Gradle.
 
-> **Signing:** GitHub Actions uses an ephemeral debug key until a repository signing secret is configured. APKs with different signing keys cannot update an existing installation in place. Back up settings before switching from an AI Studio build.
+> **Signing:** CI requires two repository secrets: `DOMDECK_KEYSTORE_BASE64` (the Base64-encoded PKCS12 keystore with alias `domdeck`) and `DOMDECK_SIGNING_PASSWORD` (the password for both the keystore and its key). Without these, the build intentionally stops instead of issuing another temporary-key APK. Keep the original keystore and password in a secure offline backup. A previously installed APK with a different signature must be uninstalled before installing the newly signed build; back up local settings first.
 
 ## Responsible usage
 

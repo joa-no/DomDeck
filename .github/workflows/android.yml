@@ -48,23 +48,25 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Prepare debug signing
+      - name: Load and verify permanent DomDeck signing key
+        shell: bash
         env:
-          DOMDECK_DEBUG_KEYSTORE_BASE64: ${{ secrets.DOMDECK_DEBUG_KEYSTORE_BASE64 }}
+          DOMDECK_KEYSTORE_BASE64: ${{ secrets.DOMDECK_KEYSTORE_BASE64 }}
+          DOMDECK_SIGNING_PASSWORD: ${{ secrets.DOMDECK_SIGNING_PASSWORD }}
         run: |
-          if [ -n "$DOMDECK_DEBUG_KEYSTORE_BASE64" ]; then
-            printf '%s' "$DOMDECK_DEBUG_KEYSTORE_BASE64" | base64 --decode > debug.keystore
-            echo "Using repository signing secret."
-          else
-            echo "::warning::No persistent signing key configured. This debug APK cannot necessarily update earlier installations."
-            keytool -genkeypair -noprompt \
-              -keystore debug.keystore \
-              -storepass android -keypass android \
-              -alias androiddebugkey -keyalg RSA -keysize 2048 \
-              -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          set -euo pipefail
+          if [ -z "$DOMDECK_KEYSTORE_BASE64" ] || [ -z "$DOMDECK_SIGNING_PASSWORD" ]; then
+            echo "::error::Configure DOMDECK_KEYSTORE_BASE64 and DOMDECK_SIGNING_PASSWORD in Settings > Secrets and variables > Actions before building."
+            exit 1
           fi
+          (umask 077; printf '%s' "$DOMDECK_KEYSTORE_BASE64" | base64 --decode > debug.keystore)
+          test -s debug.keystore
+          keytool -list -storetype PKCS12 -keystore debug.keystore -alias domdeck -storepass:env DOMDECK_SIGNING_PASSWORD >/dev/null
+          echo "DomDeck signing key loaded successfully."
 
       - name: Run unit tests and build debug APK
+        env:
+          DOMDECK_SIGNING_PASSWORD: ${{ secrets.DOMDECK_SIGNING_PASSWORD }}
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
 
       - name: Prepare downloadable APK

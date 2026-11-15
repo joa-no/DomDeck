@@ -66,6 +66,7 @@ import com.example.ui.screens.ConsolesScreen
 import com.example.ui.screens.GameDetailsScreen
 import com.example.ui.screens.GameLibraryScreen
 import com.example.ui.screens.Ps1PrototypeScreen
+import com.example.ui.screens.DomDeckCrashDiagnosticsScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.DomDeckAccent
@@ -80,6 +81,9 @@ data object HomeRoute
 
 @Serializable
 data object Ps1PrototypeRoute
+
+@Serializable
+data object DomDeckCrashDiagnosticsRoute
 
 @Serializable
 data object ConsolesRoute
@@ -319,7 +323,18 @@ fun DomDeckApp(
                             }
 
                             composable<Ps1PrototypeRoute> {
-                                Ps1PrototypeScreen(onBack = { navController.popBackStack() })
+                                Ps1PrototypeScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onOpenCrashDiagnostics = {
+                                        navController.navigate(DomDeckCrashDiagnosticsRoute)
+                                    }
+                                )
+                            }
+
+                            composable<DomDeckCrashDiagnosticsRoute> {
+                                DomDeckCrashDiagnosticsScreen(
+                                    onBack = { navController.popBackStack() }
+                                )
                             }
 
                             composable<ConsolesRoute> {

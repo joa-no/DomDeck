@@ -24,11 +24,11 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21 for Robolectric API 36 tests
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Set up Android SDK
         shell: bash
